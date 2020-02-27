@@ -1,5 +1,7 @@
 global _start
 
+%include "rawkb.s"
+
 ;reads a buffer from stdin
 ;buffer address in rdi
 ;buffer length in rsi
@@ -35,11 +37,16 @@ terminate:
 ;reads a single char from stdin
 ;returns char in rax
 achar:
-	inc rsp
+	push rax
+	mov rdi, rsp
+	mov rsi, 1
 	call stdin
 	pop rax
+	ret
 
 _start:
+	call rawkb_start
+	call achar
 	mov rdi, MSG
 	mov rsi, MSG_LEN
 	call stdout
