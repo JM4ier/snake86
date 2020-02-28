@@ -7,7 +7,7 @@ K_UP 	equ 0x48
 K_DOWN	equ 0x50
 K_LEFT	equ 0x4b
 K_RIGHT	equ 0x4d
-K_ESC	equ 0x01
+K_ESC	equ 0x81
 
 ;system call numbers
 ;SYS_READ equ 0
@@ -18,35 +18,53 @@ SYS_EXIT equ 60
 STDIN_FD equ 0
 STDOUT_FD equ 1
 
+DIR_NONE equ 0
+DIR_LEFT equ 1
+DIR_RIGHT equ 2
+DIR_UP equ 3
+DIR_DOWN equ 4
+
+DIR_CHARS: db " LRUD"
+
+system_time:
+	xor rax, rax
+	push rax
+	mov rax, 201	;sys_time
+	mov rdi, rsp	;stack
+	syscall
+	pop rax
+	ret
+
+
 stdin_ready:
 	;poll info struct on stack
-	dec rsp
-	mov byte [rsp], 0	;zero is initial return info, kernel fills it with data
+	xor rax, rax
+	push rax	;push 64 bits on stack
 
-	dec rsp
-	mov byte [rsp], 1	;POLLIN const, signals data to read
+	;bytes 0 to 3 for fd, keep it zero for stdin
 
-	dec rsp		;zero is input fd
-	mov byte [rsp], 0
-	dec rsp
-	mov byte [rsp], 0
-	
+	;bytes 4,5 for poll request
+	;POLLIN, signals data to read
+	mov byte [rsp+4], 1
+
+	;bytes 6,7 as return value
+	;keeping it zero and letting the kernel fill in the values
 
 	mov rax, SYS_POLL
-	mov rdi, rsp	;ptr to poll info struct on stack
-	mov rsi, 1	;n=1 poll info
-	mov rdx, 10	;polling timeout in ms
-
+	mov rdi, rsp	;addr of request 'struct'
+	mov rsi, 1	;number of poll requests
+	mov rdx, 10	;poll timeout in ms
 	syscall
 
-	inc rsp
-	inc rsp
-	inc rsp
+	;copying return value to al register
 	xor rax, rax
-	mov al, [rsp]	;move result into al
-	inc rsp		;restore stack
-	
+	mov ax, [rsp+6]
+
+	;pop into caller saved register to reset stack to previous state
+	pop r10
+
 	ret
+
 
 ;reads a buffer from stdin
 ;buffer address in rdi
@@ -60,7 +78,7 @@ stdin:
 	mov rax, 0
 	syscall
 	ret
-	
+
 ;writes a buffer to stdout
 ;buffer address in rdi
 ;buffer length in rsi
@@ -82,7 +100,7 @@ terminate:
 
 ;reads a single char from stdin
 ;returns char in rax
-achar:
+read_char:
 	push rax
 	mov rdi, rsp
 	mov rsi, 1
@@ -90,36 +108,40 @@ achar:
 	pop rax
 	ret
 
+err:
+	mov rdi, ERR_MSG
+	mov rsi, ERR_LEN
+	call stdout
+	jmp terminate
+
 _start:
-	call rawkb_start
-	mov r10, 0
+	call rawkb_start;change keyboard to raw mode
 
 .poll:
+	;TODO game code
+
+	;check if there is a new keycode
 	call stdin_ready
-	cmp al, 1
-	jle .poll
+	test al, 1
+	jz .poll
 
-	;print char
-	push rax
-	mov rdi, rsp
-	mov rsi, 1
-	call stdin
-	mov rdi, rsp
-	mov rsi, 1
-	call stdout
-	pop rax
+	;read char
+	call read_char
 
-	;exit after 10 chars
-	inc r10
-	cmp r10, 10
-	jl .poll
+	;exit if escape
+	cmp al, K_ESC
+	je .exit
 
+	;TODO keyboard handling
+
+	jmp .poll
+.exit:
+	;clean up after ourselves
 	call rawkb_restore
-	mov rdi, MSG
-	mov rsi, MSG_LEN
-	call stdout
 	call terminate
 
 section .rodata:
 	MSG: db "Hello, Snake!", 0xA
 	MSG_LEN: equ $ - MSG
+	ERR_MSG: db "ERR", 0xA
+	ERR_LEN: equ $ - ERR_MSG
