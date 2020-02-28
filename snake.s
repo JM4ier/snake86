@@ -2,16 +2,35 @@ global _start
 
 %include "rawkb.s"
 
+;important keycodes to control the game
+K_UP 	equ 0x48
+K_DOWN	equ 0x50
+K_LEFT	equ 0x4b
+K_RIGHT	equ 0x4d
+K_ESC	equ 0x01
+
+
+stdin_ready:
+	mov rsp, rdi	;ptr to poll info struct
+	mov ax, 0
+	push word ax	;requested fd, 0 is stdin
+	push byte al	;requested polling info, unclear
+	push byte al	;returned polling info
+	
+	
+	
+
+
 ;reads a buffer from stdin
 ;buffer address in rdi
 ;buffer length in rsi
 stdin:
 	push rsi
 	push rdi
-	xor rdi, rdi
+	mov rdi, 0
 	pop rsi
 	pop rdx
-	xor rax, rax
+	mov rax, 0
 	syscall
 	ret
 	
@@ -47,6 +66,7 @@ achar:
 _start:
 	call rawkb_start
 	call achar
+	call rawkb_restore
 	mov rdi, MSG
 	mov rsi, MSG_LEN
 	call stdout

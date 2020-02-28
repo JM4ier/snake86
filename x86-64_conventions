@@ -1,0 +1,12 @@
+syscall number		rax
+arguments		rdi rsi rdx r10 r8 r9
+starting syscall with instruction 'syscall'
+
+https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64
+
+function call conventions
+arguments		rdi rsi rdx rcx r8 r9
+caller-saved registers:	r10 r11, all argument registers
+callee-saved registers:	rbx rbp r12 r13 r14 r15
+return value in:	rax
+

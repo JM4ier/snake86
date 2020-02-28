@@ -14,6 +14,10 @@
 
 global rawkb_start
 
+;modification to the original code:
+global rawkb_restore
+;modification over
+
 
 
 ;****************************************************************************
@@ -131,6 +135,10 @@ rawkb_start:
 	int	byte  0x80
 	test	dword eax, eax
 	js	near  rawkb_error
+
+	;modification to the original code
+	ret
+	;modification over
 
 	;display the hex codes of all pressed keys, ESC exits
 
