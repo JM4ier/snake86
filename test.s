@@ -8,11 +8,11 @@ terminate:
 	syscall
 
 stdout:
-	mov eax, 4
-	mov ebx, 1
-	mov ecx, MSG
-	mov edx, MSG_LEN
-	int 0x80
+	mov rax, 1
+	mov rdi, 1
+	mov rsi, MSG
+	mov rdx, MSG_LEN
+	syscall
 	ret
 
 _start:
