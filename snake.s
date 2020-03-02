@@ -59,10 +59,10 @@ section .rodata:
 
 ANSI_DIR:
 	ANSI_LEFT:	db 0x1b, "[1D"
+	ANSI_UP:	db 0x1b, "[1A"
 	ANSI_RIGHT:	db 0x1b, "[1C"
 	ANSI_DOWN:	db 0x1b, "[1B"
-	ANSI_UP:	db 0x1b, "[1A"
-	ANSI_DIR_LEN:	equ $ - ANSI_UP
+	ANSI_DIR_LEN:	equ $ - ANSI_DOWN
 
 	ANSI_WHITE:	db 0x1b, "[47m"
 	ANSI_GREEN:	db 0x1b, "[42m"

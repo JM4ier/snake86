@@ -1,6 +1,6 @@
 ;important keycodes to control the game
-K_UP 	equ 0x48
-K_DOWN	equ 0x50
+K_UP 	equ 0x50
+K_DOWN	equ 0x48
 K_LEFT	equ 0x4b
 K_RIGHT	equ 0x4d
 K_ESC	equ 0x81

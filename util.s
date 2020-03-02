@@ -176,9 +176,18 @@ stdout:
 
 ;terminates the program by notifying the system
 terminate:
+	;restore to original keyboard config
 	call rawkb_restore
-	mov rax, 60
-	mov rdi, 0
+
+	;print trailing newline
+	mov byte [gp_buffer], 0xA
+	mov rdi, gp_buffer
+	mov rsi, 1
+	call stdout
+
+	;tell kernel to stop this thread
+	mov rax, 60	;sys_exit
+	mov rdi, 0	;success
 	syscall
 
 ;reads a single char from stdin

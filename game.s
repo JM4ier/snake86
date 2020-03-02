@@ -7,7 +7,7 @@ move_cursor:
 	cmp al, 0
 	je .move_hor_over
 	test rbx, 0x1
-	jz .posr
+	jnz .posr
 	mov rdi, ANSI_LEFT
 	jmp .posh
 .posr:
@@ -68,7 +68,7 @@ empty_screen:
 
 	mov rsi, 0
 .buffer_construction:
-	mov byte [gp_buffer+rsi], '.'	;add space
+	mov byte [gp_buffer+rsi], '*'	;add space
 	inc rsi
 	cmp rsi, WIDTH
 	jl .buffer_construction
@@ -115,7 +115,7 @@ draw_scene:
 	;position cursor on top of snakes head
 	xor rdi, rdi
 	mov di, [head]
-	mov rsi, 0x2
+	mov rsi, 0x3
 	call move_cursor
 
 	;-------snake------
@@ -222,6 +222,7 @@ handle_input:
 	je .right
 	cmp rax, K_ESC
 	je .esc
+	jmp .none
 .up:
 	mov byte [dir], 3
 	jmp .none
