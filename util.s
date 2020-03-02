@@ -1,10 +1,22 @@
 ;writes argument from address rdi with length rsi to buffer
 write_to_buf:
+	;check if src buffer has non zero length
 	cmp rsi, 0
-	jg .nonzero
+	jg .ok
+	mov byte [gp_buffer], 'Z'
 	call err
 	ret
-.nonzero:
+
+	;check if dest buffer has space
+	mov r10, rsi
+	add r10, [buffer_ptr]
+	cmp r10, buffer_size
+	jl .ok
+	mov byte [gp_buffer], 'O'
+	call err
+	ret
+
+.ok:
 	xor rax, rax
 	mov rcx, [buffer_ptr]
 .loop:
@@ -19,6 +31,69 @@ write_to_buf:
 
 	mov [buffer_ptr], rcx
 	ret
+
+;prints rdi to stdout
+print_number:
+	push rax
+	push rcx
+	push rdx
+	mov r10, 2
+	mov cl, 64
+	xor r11, r11	;temp storage to move from buffer to buffer
+	xor rdx, rdx	;has the number started?
+.loop:
+	sub cl, 4
+
+	mov rax, rdi
+	shr rax, cl
+	and rax, 0xF
+
+	or rdx, rax
+	cmp rdx, 0
+	je .zero
+
+	;nonzero or number has started --> write digit
+	mov byte r11b, [hex_table + rax]
+	mov byte [gp_buffer + r10], r11b
+	inc r10
+.zero:
+
+	cmp cl, 0
+	jg .loop
+
+
+	cmp rdx, 0
+	jne .nonzero
+	;if entire number is zero, write a '0'
+	mov byte [gp_buffer+r10], '0'
+	inc r10
+	.nonzero:
+
+	;write hex prefix '0x' and end with newline
+	mov byte [gp_buffer+0], '0'
+	mov byte [gp_buffer+1], 'x'
+	mov byte [gp_buffer+r10], 0xA	;newline
+	inc r10
+
+	;print to stdout
+	mov rdi, gp_buffer
+	mov rsi, r10
+	call stdout
+
+	pop rdx
+	pop rcx
+	pop rax
+	ret
+
+debug_number:
+	test byte [debug], 0xFF
+	jz .ret
+	call print_number
+.ret:	ret
+
+
+hex_table:	db "0123456789ABCDEF"
+
 
 system_time:
 	xor rax, rax
@@ -119,6 +194,9 @@ read_char:
 err:
 	mov rdi, ERR_MSG
 	mov rsi, ERR_LEN
+	call stdout
+	mov rdi, gp_buffer
+	mov rsi, 8
 	call stdout
 	jmp terminate
 

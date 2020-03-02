@@ -1,11 +1,11 @@
 move_cursor:
 	push rbx
+
 	mov rax, rdi
 	mov rbx, rsi
 .move_hor:
 	cmp al, 0
 	je .move_hor_over
-	push rax
 	test rbx, 0x1
 	jz .posr
 	mov rdi, ANSI_LEFT
@@ -14,6 +14,7 @@ move_cursor:
 	mov rdi, ANSI_RIGHT
 .posh:
 	mov rsi, ANSI_DIR_LEN
+	push rax
 	call write_to_buf
 	pop rax
 	dec al
@@ -22,7 +23,6 @@ move_cursor:
 .move_ver:
 	cmp ah, 0
 	je .move_ver_over
-	push rax
 	test rbx, 0x2
 	jz .posd
 	mov rdi, ANSI_UP
@@ -31,11 +31,13 @@ move_cursor:
 	mov rdi, ANSI_DOWN
 .posv:
 	mov rsi, ANSI_DIR_LEN
+	push rax
 	call write_to_buf
 	pop rax
 	dec ah
 	jmp .move_ver
 .move_ver_over:
+
 	pop rbx
 	ret
 
@@ -44,14 +46,10 @@ update_cursor_color:
 	push rdi
 	push rsi
 
-	;draw space char
-	xor r10, r10
-	mov r10b, 0x20
-	push r10
-	mov rdi, rsp
+	mov byte [gp_buffer], '#'	;space character in gp_buffer
+	mov rdi, gp_buffer
 	mov rsi, 1
 	call write_to_buf
-	pop r10
 
 	;draw ANSI_LEFT to be at the same position
 	mov rdi, ANSI_LEFT
@@ -62,20 +60,66 @@ update_cursor_color:
 	pop rdi
 	ret
 
+;fills entire screen with spaces
+empty_screen:
+	push rdi
+	push rsi
+	push rcx
+
+	mov rsi, 0
+.buffer_construction:
+	mov byte [gp_buffer+rsi], '.'	;add space
+	inc rsi
+	cmp rsi, WIDTH
+	jl .buffer_construction
+
+	mov byte [gp_buffer+rsi], 0xA	;add newline
+	inc rsi
+
+	mov rcx, 0
+.printing:
+	push rsi
+	push rcx
+
+	mov rdi, gp_buffer
+	call write_to_buf
+
+	pop rcx
+	pop rsi
+
+	inc rcx
+	cmp rcx, HEIGHT
+	jl .printing
+
+	pop rcx
+	pop rsi
+	pop rdi
+
+	ret
+
+
 draw_scene:
-	mov byte [buffer_ptr], 0	;reset buffer
+	mov rdi, 0xF00D0
+	call debug_number
+
+	mov qword [buffer_ptr], 0	;reset buffer
 
 	;clear buffer
 	mov rdi, ANSI_CLEAR
 	mov rsi, ANSI_CLEAR_LEN
 	call write_to_buf
 
+	;fill screen with emptiness (spaces)
+	call empty_screen
+
 	;position cursor on top of snakes head
+	xor rdi, rdi
 	mov di, [head]
-	mov rsi, 0x3
+	mov rsi, 0x2
 	call move_cursor
 
 	;-------snake------
+	xor rax, rax
 	mov ax, [head]	;current position of snake body part that is drawn
 	xor rcx, rcx
 
@@ -84,24 +128,32 @@ draw_scene:
 	mov rsi, ANSI_COL_LEN
 	call write_to_buf
 
+	xor rcx, rcx
 .snake_loop:
+	push rcx
 	call update_cursor_color
+	pop rcx
 	mov rdi, rax
 	mov rsi, [snake+rcx]
+	push rcx
 	call move_pos
+	pop rcx
 
-
-	mov rdi, [snake+rcx]
+	xor rdi, rdi
+	mov byte dil, [snake+rcx]
+	cmp rdi, 3
+	jg err
 	lea rdi, [ANSI_DIR + 4*rdi] ;4 is length of ANSI_DIR_LEN, can't use it directly in this context
 
 	mov rsi, ANSI_DIR_LEN
+	push rcx
 	call write_to_buf
 	call update_cursor_color
+	pop rcx
 
 	inc rcx
 	cmp byte cl, [len]
 	jl .snake_loop
-
 
 
 	;-----snake food--------
@@ -145,8 +197,10 @@ draw_scene:
 	;write buffer to stdout
 	mov rdi, buffer
 	mov rsi, [buffer_ptr]
+	test byte [draw_scene_enabled], 1
+	jz .ret
 	call stdout
-
+.ret:
 	ret
 
 handle_input:
@@ -189,14 +243,14 @@ handle_input:
 .exit:
 	ret
 
-;move position given in rdi by direction given in rsi
+;move position given in di by direction given in sil
 move_pos:
 	mov rax, rdi
-	test rsi, 0x1	;vertical?
+	test sil, 0x1	;vertical?
 	jz .hor
 
 	;vertical
-	test rsi, 0x2	;up or down?
+	test sil, 0x2	;up or down?
 	jz .down
 	;up
 	dec ah
@@ -206,7 +260,7 @@ move_pos:
 	ret
 
 .hor:	;horizontal
-	test rsi, 0x2	;left or right?
+	test sil, 0x2	;left or right?
 	jz .left
 	;right
 	inc al
@@ -215,19 +269,25 @@ move_pos:
 	dec al
 	ret
 
+;moves the head to the given dir and returns the new position in ax
 move_head:
-	xor rax, rax
-	mov ax, [head]
-	mov rdi, rax
-	xor rax, rax
-	mov al, [dir]
-	mov rsi, rax
+	xor rdi, rdi
+	mov word di, [head]
+	xor rsi, rsi
+	mov byte sil, [dir]
 	call move_pos
 	ret
 
 move_snake:
+	push rdi
+	mov rdi, 0xF00A1
+	call debug_number
+	pop rdi
+
 	call move_head	;new head position now in ax
 	push rbx
+
+	xor rbx, rbx
 	mov bx, [head]	;first new body position
 
 	;check if head is out of bounds
@@ -240,6 +300,7 @@ move_snake:
 	cmp ah, HEIGHT
 	je .outofbounds
 
+
 	;loop over body and check for collisions
 	mov rcx, 0
 .body_loop:
@@ -251,46 +312,54 @@ move_snake:
 	push rax
 	mov rdi, rbx
 	xor rsi, rsi
-	mov sil, [snake+rcx]
+	mov byte sil, [snake+rcx]
 	call move_pos
 	mov rbx, rax
 	pop rax
 
+	push rdi
+	mov rdi, 0xF00A4
+	call debug_number
+	pop rdi
+
 	;counter increment and repeating
 	inc rcx
-	cmp rcx, [len]
+	cmp byte cl, [len]
 	jl .body_loop
 
+
 	;store new head position
-	mov [head], ax
+	mov word [head], ax
 
 	;store direction in bl
 	;revert moving direction to point to next body
-	mov bl, [dir]
-	xor bl, 0x2
+	mov byte bl, [dir]
+	xor byte bl, 0x2
+
+	push rdi
+	mov rdi, 0xF00A5
+	call debug_number
+	pop rdi
 
 	;shift entire snake body
 	mov rcx, 0
 .update_loop:
 	;swap with next
-	xor bl, [snake+rcx]
-	xor [snake+rcx], bl
-	xor bl, [snake+rcx]
+	xor byte bl, [snake+rcx]
+	xor byte [snake+rcx], bl
+	xor byte bl, [snake+rcx]
 
 	;counter and repeat
 	inc rcx
-	cmp rcx, [len]
+	cmp byte cl, [len]
 	jl .update_loop
 
 	pop rbx
 	ret
 .outofbounds:
-	call game_over
-	pop rbx
-	ret
 .self_collision:
-	call game_over
 	pop rbx
+	call game_over
 	ret
 
 check_food_eaten:
@@ -312,7 +381,7 @@ check_food_eaten:
 
 game_tick:
 	;sleep 0.999s
-	mov rdi, 999 * 1000 * 1000
+	mov rdi, 200 * 1000 * 1000
 	call sleep_ns
 	ret
 
@@ -322,11 +391,11 @@ init_game:
 	mov byte [head+1], HEIGHT / 2
 
 	;initial length of 3
-	mov byte [len], 3
+	mov byte [len], 5
 
 	;reverse default direction in order not to crash into itself at start
 	mov byte r10b, [dir]
-	xor r10b, 1
+	xor r10b, 2
 	mov byte [dir], r10b
 
 	ret
