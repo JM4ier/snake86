@@ -3,4 +3,4 @@ cd "$(dirname "$0")"
 mkdir -p bin
 nasm -f elf64 -o bin/snake.o snake.s
 ld -o bin/snake bin/snake.o
-bin/snake
+bin/snake || kbd_mode -af
