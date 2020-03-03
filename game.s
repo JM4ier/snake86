@@ -191,8 +191,8 @@ generate_food:
 	ret
 
 game_tick:
-	;sleep 80 ms
-	mov rdi, 80 * 1000 * 1000
+	;sleep 16 ms
+	mov rdi, 16 * 1000 * 1000
 	call sleep_ns
 	ret
 

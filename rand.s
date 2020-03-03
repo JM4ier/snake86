@@ -11,8 +11,8 @@ init_rand:
 
 next_rand:
 	mov rax, [randq]
-	inc rax
 	shl rax, 1
+	inc rax
 	xor rdx, rdx
 	mov r10, PRIME
 	div r10
