@@ -1,6 +1,6 @@
 ;important keycodes to control the game
-K_UP 	equ 0x50
-K_DOWN	equ 0x48
+K_UP 	equ 0x48
+K_DOWN	equ 0x50
 K_LEFT	equ 0x4b
 K_RIGHT	equ 0x4d
 K_ESC	equ 0x81
@@ -24,6 +24,7 @@ EMPTY_FIELD equ 0
 SNAKE_FIELD equ 1
 FOOD_FIELD  equ 2
 
-WIDTH equ 20
-HEIGHT equ 20
+SIZE equ 32
+SIZE_LOG equ 5
 
+PRIME equ 0xFFFFFFFB

@@ -4,48 +4,44 @@ global _start
 %include "consts.s"
 %include "util.s"
 %include "game.s"
+%include "draw.s"
+%include "rand.s"
 
 _start:
 	call rawkb_start;change keyboard to raw mode
 	call init_game
 
-	mov byte [draw_scene_enabled], 1
-	mov byte [debug], 0
+	call clear_screen
 
-	mov rdi, 0xC0FFEEFACE
-	call print_number
-	mov rdi, 0
-	call print_number
-	mov rdi, buffer_size
-	call print_number
+	call build_buffer
+	call reset_cursor
+	call print_buffer
 
-	xor rdi, rdi
-	mov di, [head]
-	call print_number
+	mov byte [draw_scene_enabled], 0
+	mov byte [debug], 1
 
 .loop:
+	;input and game logic
+	call check_running
 	call handle_input
 	call move_snake
-	call draw_scene
+	call generate_food
+	call check_food_eaten
+
+	;drawing
+	call clear_field
+	call draw_snake
+	call draw_food
+	call build_buffer
+	call reset_cursor
+	call print_buffer
+
+	;sleep
 	call game_tick
 
-	;jmp terminate;todo debug
+	;repeat
 	jmp .loop
 
-
-align 4
-section .bss
-	head		resw 1		;position of head of snake
-	dir		resb 1		;direction the snake is heading
-	snake		resb 128	;direction of snake's body for each part
-	len		resb 1		;length of snake
-	food		resb 3		;is there food? x, y
-	buffer		resb 8192	;text buffer
-	buffer_size	equ $ - buffer	;buffer size
-	buffer_ptr	resq 1		;position in buffer
-	gp_buffer	resb 1024	;general purpose buffer
-	draw_scene_enabled	resb 1	;is the scene being rendered?
-	debug		resb 1		;enable debug print statements?
 
 section .rodata:
 	MSG:		db "Hello, Snake!", 0xA
@@ -57,17 +53,37 @@ section .rodata:
 	ANSI_CLEAR:	db 0x1b, 0x5b, 0x48, 0x1b, 0x5b, 0x4a, 0x1b, 0x5b, 0x33, 0x4a
 	ANSI_CLEAR_LEN:	equ $ - ANSI_CLEAR
 
-ANSI_DIR:
+	ANSI_DIR:
 	ANSI_LEFT:	db 0x1b, "[1D"
 	ANSI_UP:	db 0x1b, "[1A"
 	ANSI_RIGHT:	db 0x1b, "[1C"
 	ANSI_DOWN:	db 0x1b, "[1B"
 	ANSI_DIR_LEN:	equ $ - ANSI_DOWN
 
-	ANSI_WHITE:	db 0x1b, "[47m"
-	ANSI_GREEN:	db 0x1b, "[42m"
-	ANSI_BLACK:	db 0x1b, "[40m"
-	ANSI_COL_LEN:	equ $ - ANSI_BLACK
+	COL:
+	COL_SNAKE:	db 0x1b, "[42m"
+	COL_FOOD:	db 0x1b, "[41m"
+	COL_BORDER:	db 0x1b, "[47m"
+	COL_DEFAULT:	db 0x1b, "[40m"
+	COL_LEN:	equ $ - COL_DEFAULT
 
 	DIRS:		db 3, 1, 0, 2
 
+align 4
+section .bss
+	randq		resq 1		;random number
+	head		resw 1		;position of head of snake
+	dir		resb 1		;direction the snake is heading
+	snake		resb 128	;direction of snake's body for each part
+	len		resb 1		;length of snake
+	food		resb 3		;is there food? x, y
+	buffer		resb 0x10000	;text buffer
+	buffer_size	equ $ - buffer	;buffer size
+	buffer_ptr	resq 1		;position in buffer
+	gp_buffer	resb 1024	;general purpose buffer
+	draw_scene_enabled	resb 1	;is the scene being rendered?
+	debug		resb 1		;enable debug print statements?
+	debug_num	resq 1
+	running		resq 1
+	game_buf	resb SIZE*SIZE
+	volatile	resq 1

@@ -1,37 +1,3 @@
-;writes argument from address rdi with length rsi to buffer
-write_to_buf:
-	;check if src buffer has non zero length
-	cmp rsi, 0
-	jg .ok
-	mov byte [gp_buffer], 'Z'
-	call err
-	ret
-
-	;check if dest buffer has space
-	mov r10, rsi
-	add r10, [buffer_ptr]
-	cmp r10, buffer_size
-	jl .ok
-	mov byte [gp_buffer], 'O'
-	call err
-	ret
-
-.ok:
-	xor rax, rax
-	mov rcx, [buffer_ptr]
-.loop:
-	mov byte dl, [rdi + rax]
-	mov byte [buffer + rcx], dl
-
-	inc rcx
-	inc rax
-
-	cmp rax, rsi
-	jl .loop
-
-	mov [buffer_ptr], rcx
-	ret
-
 ;prints rdi to stdout
 print_number:
 	push rax
@@ -204,8 +170,57 @@ err:
 	mov rdi, ERR_MSG
 	mov rsi, ERR_LEN
 	call stdout
-	mov rdi, gp_buffer
-	mov rsi, 8
+	jmp terminate
+
+errmsg:
 	call stdout
 	jmp terminate
+
+;writes argument from address rdi with length rsi to buffer
+write_to_buf:
+	;check if src buffer has non zero length
+	cmp rsi, 0
+	jg .ok
+	call err
+	ret
+
+	;check if dest buffer has space
+	mov r10, rsi
+	add r10, [buffer_ptr]
+	cmp r10, buffer_size
+	jl .ok
+	call err
+	ret
+
+.ok:
+	xor rax, rax
+	mov rcx, [buffer_ptr]
+.loop:
+	mov byte dl, [rdi + rax]
+	mov byte [buffer + rcx], dl
+
+	inc rcx
+	inc rax
+
+	cmp rax, rsi
+	jl .loop
+
+	mov [buffer_ptr], rcx
+	ret
+
+print_debug:
+	push rax
+	push rdi
+	push rsi
+
+	xor rdi, rdi
+	mov rdi, [debug_num]
+	inc rdi
+	mov [debug_num], rdi
+	call print_number
+
+	pop rsi
+	pop rdi
+	pop rax
+	ret
 

@@ -1,208 +1,3 @@
-move_cursor:
-	push rbx
-
-	mov rax, rdi
-	mov rbx, rsi
-.move_hor:
-	cmp al, 0
-	je .move_hor_over
-	test rbx, 0x1
-	jnz .posr
-	mov rdi, ANSI_LEFT
-	jmp .posh
-.posr:
-	mov rdi, ANSI_RIGHT
-.posh:
-	mov rsi, ANSI_DIR_LEN
-	push rax
-	call write_to_buf
-	pop rax
-	dec al
-	jmp .move_hor
-.move_hor_over:
-.move_ver:
-	cmp ah, 0
-	je .move_ver_over
-	test rbx, 0x2
-	jz .posd
-	mov rdi, ANSI_UP
-	jmp .posv
-.posd:
-	mov rdi, ANSI_DOWN
-.posv:
-	mov rsi, ANSI_DIR_LEN
-	push rax
-	call write_to_buf
-	pop rax
-	dec ah
-	jmp .move_ver
-.move_ver_over:
-
-	pop rbx
-	ret
-
-;appends char given in dil to buffer
-update_cursor_color:
-	push rdi
-	push rsi
-
-	mov byte [gp_buffer], '#'	;space character in gp_buffer
-	mov rdi, gp_buffer
-	mov rsi, 1
-	call write_to_buf
-
-	;draw ANSI_LEFT to be at the same position
-	mov rdi, ANSI_LEFT
-	mov rsi, ANSI_DIR_LEN
-	call write_to_buf
-
-	pop rsi
-	pop rdi
-	ret
-
-;fills entire screen with spaces
-empty_screen:
-	push rdi
-	push rsi
-	push rcx
-
-	mov rsi, 0
-.buffer_construction:
-	mov byte [gp_buffer+rsi], '*'	;add space
-	inc rsi
-	cmp rsi, WIDTH
-	jl .buffer_construction
-
-	mov byte [gp_buffer+rsi], 0xA	;add newline
-	inc rsi
-
-	mov rcx, 0
-.printing:
-	push rsi
-	push rcx
-
-	mov rdi, gp_buffer
-	call write_to_buf
-
-	pop rcx
-	pop rsi
-
-	inc rcx
-	cmp rcx, HEIGHT
-	jl .printing
-
-	pop rcx
-	pop rsi
-	pop rdi
-
-	ret
-
-
-draw_scene:
-	mov rdi, 0xF00D0
-	call debug_number
-
-	mov qword [buffer_ptr], 0	;reset buffer
-
-	;clear buffer
-	mov rdi, ANSI_CLEAR
-	mov rsi, ANSI_CLEAR_LEN
-	call write_to_buf
-
-	;fill screen with emptiness (spaces)
-	call empty_screen
-
-	;position cursor on top of snakes head
-	xor rdi, rdi
-	mov di, [head]
-	mov rsi, 0x3
-	call move_cursor
-
-	;-------snake------
-	xor rax, rax
-	mov ax, [head]	;current position of snake body part that is drawn
-	xor rcx, rcx
-
-	;change color to snake color
-	mov rdi, ANSI_WHITE
-	mov rsi, ANSI_COL_LEN
-	call write_to_buf
-
-	xor rcx, rcx
-.snake_loop:
-	push rcx
-	call update_cursor_color
-	pop rcx
-	mov rdi, rax
-	mov rsi, [snake+rcx]
-	push rcx
-	call move_pos
-	pop rcx
-
-	xor rdi, rdi
-	mov byte dil, [snake+rcx]
-	cmp rdi, 3
-	jg err
-	lea rdi, [ANSI_DIR + 4*rdi] ;4 is length of ANSI_DIR_LEN, can't use it directly in this context
-
-	mov rsi, ANSI_DIR_LEN
-	push rcx
-	call write_to_buf
-	call update_cursor_color
-	pop rcx
-
-	inc rcx
-	cmp byte cl, [len]
-	jl .snake_loop
-
-
-	;-----snake food--------
-
-	;check if food exists
-	cmp byte [food], 0
-	je .no_food
-
-	; reset cursor
-	mov rdi, rax
-	mov rsi, 0x0
-	call move_cursor
-
-
-	;move cursor to food
-	mov di, [food+1]
-	mov rsi, 0x3
-	call move_cursor
-
-	;draw food
-	mov rdi, ANSI_GREEN
-	mov rsi, ANSI_COL_LEN
-	call write_to_buf
-	call update_cursor_color
-
-.no_food:
-
-	;reset color to black
-	mov rdi, ANSI_BLACK
-	mov rsi, ANSI_COL_LEN
-	call write_to_buf
-
-	;append newline and null character to buffer
-	mov r10, 0x0
-	push r10
-	mov rdi, rsp
-	mov rsi, 1
-	call write_to_buf
-	pop r10
-
-	;write buffer to stdout
-	mov rdi, buffer
-	mov rsi, [buffer_ptr]
-	test byte [draw_scene_enabled], 1
-	jz .ret
-	call stdout
-.ret:
-	ret
-
 handle_input:
 	;result in [dir]
 	call stdin_ready
@@ -280,11 +75,6 @@ move_head:
 	ret
 
 move_snake:
-	push rdi
-	mov rdi, 0xF00A1
-	call debug_number
-	pop rdi
-
 	call move_head	;new head position now in ax
 	push rbx
 
@@ -294,11 +84,11 @@ move_snake:
 	;check if head is out of bounds
 	cmp al, 0
 	je .outofbounds
-	cmp al, WIDTH
+	cmp al, SIZE + 1
 	je .outofbounds
 	cmp ah, 0
 	je .outofbounds
-	cmp ah, HEIGHT
+	cmp ah, SIZE + 1
 	je .outofbounds
 
 
@@ -318,11 +108,6 @@ move_snake:
 	mov rbx, rax
 	pop rax
 
-	push rdi
-	mov rdi, 0xF00A4
-	call debug_number
-	pop rdi
-
 	;counter increment and repeating
 	inc rcx
 	cmp byte cl, [len]
@@ -336,11 +121,6 @@ move_snake:
 	;revert moving direction to point to next body
 	mov byte bl, [dir]
 	xor byte bl, 0x2
-
-	push rdi
-	mov rdi, 0xF00A5
-	call debug_number
-	pop rdi
 
 	;shift entire snake body
 	mov rcx, 0
@@ -359,8 +139,11 @@ move_snake:
 	ret
 .outofbounds:
 .self_collision:
+	;store new head position
+	mov word [head], ax
+
 	pop rbx
-	call game_over
+	mov byte [running], 0
 	ret
 
 check_food_eaten:
@@ -374,22 +157,50 @@ check_food_eaten:
 	ret
 .eaten:
 	;increase length and remove food
+	xor rcx, rcx
 	mov cl, [len]
+	mov dl, [snake+rcx-1]
+	mov [snake+rcx], dl
 	inc cl
 	mov [len], cl
 	mov byte [food], 0
 	ret
 
+rand_in_field:
+	call next_rand
+	xor rdx, rdx
+	mov r10, SIZE-4
+	div r10
+	mov rax, rdx
+	add rax, 2
+	ret
+
+generate_food:
+	cmp byte [food], 0
+	jg .exit
+	call next_rand
+	and rax, 0xF
+	cmp rax, 0x5
+	jge .exit
+	call rand_in_field
+	mov byte [food+1], al
+	call rand_in_field
+	mov byte [food+2], al
+	mov byte [food], 1
+.exit:
+	ret
+
 game_tick:
-	;sleep 0.999s
-	mov rdi, 200 * 1000 * 1000
+	;sleep 80 ms
+	mov rdi, 80 * 1000 * 1000
 	call sleep_ns
 	ret
 
 init_game:
+	call init_rand
 	;move head of snake in middle
-	mov byte [head+0], WIDTH / 2
-	mov byte [head+1], HEIGHT / 2
+	mov byte [head+0], SIZE / 2
+	mov byte [head+1], SIZE / 2
 
 	;initial length of 3
 	mov byte [len], 5
@@ -399,7 +210,27 @@ init_game:
 	xor r10b, 2
 	mov byte [dir], r10b
 
+	;game is running
+	mov byte [running], 1
+
 	ret
+
+check_running:
+	cmp qword [running], 1
+	jne .game_over
+	ret
+.game_over:
+	call clear_screen
+	mov rdi, .go_message
+	mov rsi, .go_message_len
+	call stdout
+	xor rdi, rdi
+	mov byte dil, [len]
+	call print_number
+	jmp terminate
+.go_message: db 'Game over. Your score: '
+.go_message_len: equ $ - .go_message
+
 
 game_over:
 	call terminate
