@@ -16,7 +16,7 @@ PRIME equ 0xFFFFFFFB
 FOOD_GEN_CHANCE equ 50
 
 ;ms of sleeping per game tick
-TICK_SLEEP equ 15
+TICK_SLEEP equ 30
 
 ;initial length of snake
 INITIAL_LENGTH equ 3

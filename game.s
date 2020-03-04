@@ -1,10 +1,18 @@
 handle_input:
+	mov byte r15b, [dir]
+
+.repeat:
 	;result in [dir]
+	push r15
 	call stdin_ready
+	pop r15
 	test al, 0x1
 	jz .exit
+
 	;input ready here
+	push r15
 	call read_char
+	pop r15
 
 	;best coding practice right here
 	cmp rax, K_UP
@@ -17,26 +25,30 @@ handle_input:
 	je .right
 	cmp rax, K_ESC
 	je .esc
-	jmp .none
+	jmp .repeat
 .up:
-	mov byte [dir], 3
-	jmp .none
+	mov byte r15b, 3
+	jmp .repeat
 .down:
-	mov byte [dir], 1
-	jmp .none
+	mov byte r15b, 1
+	jmp .repeat
 .left:
-	mov byte [dir], 0
-	jmp .none
+	mov byte r15b, 0
+	jmp .repeat
 .right:
-	mov byte [dir], 2
-	jmp .none
+	mov byte r15b, 2
+	jmp .repeat
 .esc:
 	call terminate
-	jmp .none
-.none:
-	;repeat until no char left
-	jmp handle_input
 .exit:
+	xor rax, rax
+	mov al, [dir]
+	xor al, r15b
+	cmp al, 0x2
+	jne .mov
+	ret
+.mov:
+	mov byte [dir], r15b
 	ret
 
 ;move position given in di by direction given in sil

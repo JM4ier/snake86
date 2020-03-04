@@ -7,6 +7,15 @@ global _start
 %include "draw.s"
 %include "rand.s"
 
+draw_all:
+	call clear_field
+	call draw_snake
+	call draw_food
+	call build_buffer
+	call reset_cursor
+	call print_buffer
+	ret
+
 _start:
 	call rawkb_start;change keyboard to raw mode
 	call remove_cursor
@@ -14,12 +23,10 @@ _start:
 
 	call clear_screen
 
-	call build_buffer
-	call reset_cursor
-	call print_buffer
+	call draw_all
 
-	mov byte [draw_scene_enabled], 0
-	mov byte [debug], 1
+	mov rdi, 300 * 1000 * 1000
+	call sleep_ns
 
 .loop:
 	;input and game logic
@@ -28,12 +35,7 @@ _start:
 	call generate_food
 
 	;drawing
-	call clear_field
-	call draw_snake
-	call draw_food
-	call build_buffer
-	call reset_cursor
-	call print_buffer
+	call draw_all
 
 	;sleep
 	call game_tick
@@ -81,7 +83,5 @@ section .bss
 	buffer_size	equ $ - buffer	;buffer size
 	buffer_ptr	resq 1		;position in buffer
 	gp_buffer	resb 1024	;general purpose buffer
-	draw_scene_enabled	resb 1	;is the scene being rendered?
-	debug		resb 1		;enable debug print statements?
 	running		resq 1
 	game_buf	resb SIZE*SIZE
