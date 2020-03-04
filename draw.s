@@ -73,11 +73,6 @@ reset_cursor:
 	inc rbx
 	cmp rbx, SIZE + 3
 	jl .loop
-
-	mov rdi, ANSI_DOWN
-	mov rsi, ANSI_DIR_LEN
-	call write_to_buf
-
 	ret
 
 ;draws horizontal border line
@@ -98,11 +93,11 @@ hor_line:
 	ret
 
 build_buffer:
-	call hor_line
+	mov qword [buffer_ptr], 0 ;reset buffer
+	call hor_line	;top border line
 
 	xor rbx, rbx	;x
 	xor rcx, rcx	;y
-	mov qword [buffer_ptr], 0
 	.outer:
 		push rcx
 		call draw_border_char	;left border

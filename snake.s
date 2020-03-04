@@ -9,6 +9,7 @@ global _start
 
 _start:
 	call rawkb_start;change keyboard to raw mode
+	call remove_cursor
 	call init_game
 
 	call clear_screen

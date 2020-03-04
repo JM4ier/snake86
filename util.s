@@ -138,6 +138,7 @@ stdout:
 terminate:
 	;restore to original keyboard config
 	call rawkb_restore
+	call restore_cursor
 
 	;print trailing newline
 	mov byte [gp_buffer], 0xA
@@ -171,6 +172,22 @@ err:
 errmsg:
 	call stdout
 	jmp terminate
+
+remove_cursor:
+	mov rdi, .ansi
+	mov rsi, .ansi_len
+	call stdout
+	ret
+.ansi:		db 0x1b, '[?1c'
+.ansi_len: 	equ $ - .ansi
+
+restore_cursor:
+	mov rdi, .ansi
+	mov rsi, .ansi_len
+	call stdout
+	ret
+.ansi:		db 0x1b, '[?6c'
+.ansi_len:	equ $ - .ansi
 
 ;writes argument from address rdi with length rsi to buffer
 write_to_buf:
