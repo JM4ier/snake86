@@ -14,11 +14,6 @@
 
 global rawkb_start
 
-;modification to the original code:
-global rawkb_restore
-;modification over
-
-
 
 ;****************************************************************************
 ;* some assign's

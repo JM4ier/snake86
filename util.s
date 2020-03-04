@@ -1,10 +1,11 @@
-;prints rdi to stdout
+;prints rdi to stdout in hex format
 print_number:
 	push rax
 	push rcx
 	push rdx
+
 	mov r10, 2
-	mov cl, 64
+	mov cl, 64	;position of hex digit
 	xor r11, r11	;temp storage to move from buffer to buffer
 	xor rdx, rdx	;has the number started?
 .loop:
@@ -51,27 +52,20 @@ print_number:
 	pop rax
 	ret
 
-debug_number:
-	test byte [debug], 0xFF
-	jz .ret
-	call print_number
-.ret:	ret
-
-
 hex_table:	db "0123456789ABCDEF"
 
 
 system_time:
 	xor rax, rax
 	push rax
-	mov rax, 201	;sys_time
+	mov rax, 201	;SYS_TIME
 	mov rdi, rsp	;stack
 	syscall
 	pop rax
 	ret
 
 sleep_ns:
-	mov rax, 35	;sys_nanosleep
+	mov rax, 35	;SYS_NANOSLEEP
 	mov r10, rdi	;rdi nanos
 	push r10
 	xor r10, r10	;0 seconds
@@ -98,7 +92,7 @@ stdin_ready:
 	;bytes 6,7 as return value
 	;keeping it zero and letting the kernel fill in the values
 
-	mov rax, SYS_POLL
+	mov rax, 7	;SYS_POLL
 	mov rdi, rsp	;addr of request 'struct'
 	mov rsi, 1	;number of poll requests
 	mov rdx, 10	;poll timeout in ms
@@ -120,10 +114,10 @@ stdin_ready:
 stdin:
 	push rsi
 	push rdi
-	mov rdi, 0
-	pop rsi
-	pop rdx
-	mov rax, 0
+	mov rdi, 0	;FD 0 is stdin
+	pop rsi		;buffer address in rsi
+	pop rdx		;buffer length in rdx
+	mov rax, 0	;SYS_READ
 	syscall
 	ret
 
@@ -133,10 +127,10 @@ stdin:
 stdout:
 	push rsi
 	push rdi
-	mov rdi, 1
-	pop rsi
-	pop rdx
-	mov rax, 1
+	mov rdi, 1	;FD 1 is stdout
+	pop rsi		;buffer address in rsi
+	pop rdx		;buffer length in rdx
+	mov rax, 1	;SYS_WRITE
 	syscall
 	ret
 
@@ -152,7 +146,7 @@ terminate:
 	call stdout
 
 	;tell kernel to stop this thread
-	mov rax, 60	;sys_exit
+	mov rax, 60	;SYS_EXIT
 	mov rdi, 0	;success
 	syscall
 
@@ -166,12 +160,14 @@ read_char:
 	pop rax
 	ret
 
+;prints 'ERR' to stdout and terminates
 err:
 	mov rdi, ERR_MSG
 	mov rsi, ERR_LEN
 	call stdout
 	jmp terminate
 
+;prints a buffer given by rdi:rsi and terminates
 errmsg:
 	call stdout
 	jmp terminate
@@ -180,19 +176,19 @@ errmsg:
 write_to_buf:
 	;check if src buffer has non zero length
 	cmp rsi, 0
-	jg .ok
+	jg .ok1
 	call err
 	ret
-
+.ok1:
 	;check if dest buffer has space
 	mov r10, rsi
 	add r10, [buffer_ptr]
 	cmp r10, buffer_size
-	jl .ok
+	jl .ok2
 	call err
 	ret
 
-.ok:
+.ok2:
 	xor rax, rax
 	mov rcx, [buffer_ptr]
 .loop:
@@ -206,21 +202,5 @@ write_to_buf:
 	jl .loop
 
 	mov [buffer_ptr], rcx
-	ret
-
-print_debug:
-	push rax
-	push rdi
-	push rsi
-
-	xor rdi, rdi
-	mov rdi, [debug_num]
-	inc rdi
-	mov [debug_num], rdi
-	call print_number
-
-	pop rsi
-	pop rdi
-	pop rax
 	ret
 

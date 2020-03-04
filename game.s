@@ -179,8 +179,8 @@ generate_food:
 	cmp byte [food], 0
 	jg .exit
 	call next_rand
-	and rax, 0xF
-	cmp rax, 0x5
+	and rax, 0x3FF
+	cmp rax, FOOD_GEN_CHANCE
 	jge .exit
 	call rand_in_field
 	mov byte [food+1], al
@@ -191,8 +191,7 @@ generate_food:
 	ret
 
 game_tick:
-	;sleep 16 ms
-	mov rdi, 16 * 1000 * 1000
+	mov rdi, TICK_SLEEP * 1000 * 1000
 	call sleep_ns
 	ret
 
@@ -202,8 +201,8 @@ init_game:
 	mov byte [head+0], SIZE / 2
 	mov byte [head+1], SIZE / 2
 
-	;initial length of 3
-	mov byte [len], 5
+	;set initial length
+	mov byte [len], INITIAL_LENGTH
 
 	;reverse default direction in order not to crash into itself at start
 	mov byte r10b, [dir]
@@ -212,7 +211,6 @@ init_game:
 
 	;game is running
 	mov byte [running], 1
-
 	ret
 
 check_running:
@@ -226,6 +224,7 @@ check_running:
 	call stdout
 	xor rdi, rdi
 	mov byte dil, [len]
+	sub rdi, INITIAL_LENGTH
 	call print_number
 	jmp terminate
 .go_message: db 'Game over. Your score: '

@@ -22,11 +22,9 @@ _start:
 
 .loop:
 	;input and game logic
-	call check_running
 	call handle_input
 	call move_snake
 	call generate_food
-	call check_food_eaten
 
 	;drawing
 	call clear_field
@@ -39,13 +37,14 @@ _start:
 	;sleep
 	call game_tick
 
+	call check_running
+	call check_food_eaten
+
 	;repeat
 	jmp .loop
 
 
 section .rodata:
-	MSG:		db "Hello, Snake!", 0xA
-	MSG_LEN:	equ $ - MSG
 	ERR_MSG:	db "ERR", 0xA
 	ERR_LEN:	equ $ - ERR_MSG
 
@@ -83,7 +82,5 @@ section .bss
 	gp_buffer	resb 1024	;general purpose buffer
 	draw_scene_enabled	resb 1	;is the scene being rendered?
 	debug		resb 1		;enable debug print statements?
-	debug_num	resq 1
 	running		resq 1
 	game_buf	resb SIZE*SIZE
-	volatile	resq 1

@@ -11,8 +11,11 @@ init_rand:
 
 next_rand:
 	mov rax, [randq]
+	cmp rax, 0
+	jne .nonzero
+	mov rax, 1
+.nonzero:
 	shl rax, 1
-	inc rax
 	xor rdx, rdx
 	mov r10, PRIME
 	div r10
