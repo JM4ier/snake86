@@ -103,13 +103,22 @@ move_snake:
 	cmp ah, SIZE + 1
 	je .outofbounds
 
+	jmp .inbounds
+	.outofbounds:
+	mov byte [running], 0
+	.inbounds:
+
+
 
 	;loop over body and check for collisions
 	mov rcx, 0
 .body_loop:
 	;check for head-body collision
 	cmp rax, rbx
-	je .self_collision
+	jne .no_collision
+	;self collision
+	mov byte [running], 0
+	.no_collision:
 
 	;move to the next body part
 	push rax
@@ -148,14 +157,6 @@ move_snake:
 	jl .update_loop
 
 	pop rbx
-	ret
-.outofbounds:
-.self_collision:
-	;store new head position
-	mov word [head], ax
-
-	pop rbx
-	mov byte [running], 0
 	ret
 
 check_food_eaten:
